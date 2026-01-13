@@ -10,6 +10,12 @@
 
 A Model Context Protocol (MCP) server that lets you manipulate Excel files without needing Microsoft Excel installed. Create, read, and modify Excel workbooks with your AI agent.
 
+## 🔱 Fork Overview
+
+This fork extends the original Excel MCP Server with additional capabilities:
+
+- **📦 Binary Export**: Read Excel files as base64-encoded strings for cloud storage uploads (S3, Azure, GCS), API transfers, and database storage
+
 ## Features
 
 - 📊 **Excel Operations**: Create, read, update workbooks and worksheets
