@@ -23,7 +23,7 @@ from excel_mcp.validation import (
     validate_range_in_sheet_operation as validate_range_impl
 )
 from excel_mcp.chart import create_chart_in_sheet as create_chart_impl
-from excel_mcp.workbook import get_workbook_info
+from excel_mcp.workbook import get_workbook_info, read_excel_binary as read_excel_binary_impl
 from excel_mcp.data import write_data
 from excel_mcp.pivot import create_pivot_table as create_pivot_table_impl
 from excel_mcp.tables import create_excel_table as create_table_impl
@@ -72,26 +72,40 @@ mcp = FastMCP(
     instructions="Excel MCP Server for manipulating Excel files"
 )
 
-def get_excel_path(filename: str) -> str:
+def get_excel_path(filename: str, validate_extension: bool = False) -> str:
     """Get full path to Excel file.
     
     Args:
         filename: Name of Excel file
+        validate_extension: Whether to validate the file has an Excel extension
         
     Returns:
         Full path to Excel file
+        
+    Raises:
+        ValueError: If filename is invalid or not an Excel file (when validate_extension=True)
     """
-    # If filename is already an absolute path, return it
+    # If filename is already an absolute path, use it
     if os.path.isabs(filename):
-        return filename
-
-    # Check if in SSE mode (EXCEL_FILES_PATH is not None)
-    if EXCEL_FILES_PATH is None:
-        # Must use absolute path
+        full_path = filename
+    elif EXCEL_FILES_PATH is None:
+        # Must use absolute path when not in SSE mode
         raise ValueError(f"Invalid filename: {filename}, must be an absolute path when not in SSE mode")
-
-    # In SSE mode, if it's a relative path, resolve it based on EXCEL_FILES_PATH
-    return os.path.join(EXCEL_FILES_PATH, filename)
+    else:
+        # In SSE mode, resolve relative path based on EXCEL_FILES_PATH
+        full_path = os.path.join(EXCEL_FILES_PATH, filename)
+    
+    # Validate file extension if requested
+    if validate_extension:
+        file_ext = os.path.splitext(full_path)[1].lower()
+        if file_ext not in ['.xlsx', '.xlsm', '.xlsb', '.xls']:
+            logger.warning(f"File extension '{file_ext}' may not be a valid Excel file: {full_path}")
+    
+    # Check if path is a directory
+    if os.path.exists(full_path) and not os.path.isfile(full_path):
+        raise ValueError(f"Path is not a file: {full_path}")
+    
+    return full_path
 
 @mcp.tool(
     annotations=ToolAnnotations(
@@ -510,6 +524,47 @@ def get_workbook_metadata(
         return f"Error: {str(e)}"
     except Exception as e:
         logger.error(f"Error getting workbook metadata: {e}")
+        raise
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Read Excel Binary",
+        readOnlyHint=True,
+    ),
+)
+def read_excel_binary(filepath: str) -> str:
+    """Read Excel file as base64-encoded binary string for transfer or upload.
+    
+    This tool returns the raw base64-encoded content of an Excel file, which can be:
+    - Uploaded to cloud storage (S3, Azure Blob, Google Cloud Storage, etc.)
+    - Sent through APIs that accept base64-encoded data
+    - Transferred over text-based protocols
+    - Embedded in JSON payloads
+    - Stored in databases as text fields
+    
+    For file metadata (size, sheets, etc.), use the get_workbook_metadata tool.
+    
+    Args:
+        filepath: Path to the Excel file to read (supports .xlsx, .xlsm, .xlsb, .xls formats)
+    
+    Returns:
+        Base64-encoded string of the Excel file binary content
+    
+    Notes:
+        - Works with .xlsx, .xlsm, .xlsb (Excel 2007+) and .xls (Excel 97-2003) formats
+        - The base64 string size will be approximately 33% larger than the original file
+        - For very large files (>50MB), consider streaming or chunking approaches
+        - To decode in Python: base64.b64decode(content)
+        - To decode in Node.js: Buffer.from(content, 'base64')
+        - To decode in browser JavaScript: atob(content)
+    """
+    try:
+        full_path = get_excel_path(filepath, validate_extension=True)
+        return read_excel_binary_impl(full_path)
+    except (WorkbookError, ValueError) as e:
+        return f"Error: {str(e)}"
+    except Exception as e:
+        logger.error(f"Error reading Excel file as binary: {e}")
         raise
 
 @mcp.tool(

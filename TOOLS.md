@@ -39,6 +39,34 @@ get_workbook_metadata(filepath: str, include_ranges: bool = False) -> str
 - `include_ranges`: Whether to include range information
 - Returns: String representation of workbook metadata
 
+### read_excel_binary
+
+Read Excel file as base64-encoded binary string for transfer or upload.
+
+```python
+read_excel_binary(filepath: str) -> str
+```
+
+- `filepath`: Path to Excel file (supports .xlsx, .xlsm, .xlsb, .xls formats)
+- Returns: Base64-encoded string of the Excel file binary content
+
+**Use Cases:**
+- Upload Excel files to cloud storage (S3, Azure Blob, Google Cloud Storage, etc.)
+- Send Excel files through APIs that accept base64-encoded data
+- Transfer Excel files through text-based protocols
+- Embed Excel files in JSON payloads
+- Store Excel files in databases as text fields
+
+**Notes:**
+- Returns only the base64-encoded content (not JSON)
+- Use `get_workbook_metadata()` to retrieve file metadata (size, sheets, etc.)
+- Works with .xlsx, .xlsm, .xlsb (Excel 2007+) and .xls (Excel 97-2003) formats
+- The base64 string size will be approximately 33% larger than the original file
+- For very large files (>50MB), consider streaming or chunking approaches
+- To decode in Python: `base64.b64decode(content)`
+- To decode in Node.js: `Buffer.from(content, 'base64')`
+- To decode in browser JavaScript: `atob(content)`
+
 ## Data Operations
 
 ### write_data_to_excel
