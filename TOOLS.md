@@ -67,6 +67,32 @@ read_excel_binary(filepath: str) -> str
 - To decode in Node.js: `Buffer.from(content, 'base64')`
 - To decode in browser JavaScript: `atob(content)`
 
+### write_excel_binary
+
+Write base64-encoded content to an Excel file.
+
+```python
+write_excel_binary(filepath: str, base64_content: str) -> str
+```
+
+- `filepath`: Path where to write the Excel file (supports .xlsx, .xlsm, .xlsb, .xls formats)
+- `base64_content`: Base64-encoded string of Excel file binary content
+- Returns: Success message with file path and size
+
+**Use Cases:**
+- Create files from templates stored as base64
+- Download files from cloud storage and save locally
+- Restore files from database storage
+- Write files received from API responses
+- Initialize workbooks from pre-existing templates
+
+**Notes:**
+- Creates parent directories if they don't exist
+- Overwrites existing file at the path
+- Works with .xlsx, .xlsm, .xlsb (Excel 2007+) and .xls (Excel 97-2003) formats
+- Validates that content is valid base64 and meets minimum size requirements
+- Use `read_excel_binary()` to get base64 content from existing files
+
 ## Data Operations
 
 ### write_data_to_excel

@@ -169,4 +169,93 @@ def read_excel_binary(filepath: str) -> str:
         logger.error(error_msg)
         raise WorkbookError(error_msg)
 
+def write_excel_binary(filepath: str, base64_content: str) -> dict[str, Any]:
+    """Write base64-encoded content to an Excel file.
+    
+    This function is useful when you need to:
+    - Create Excel files from templates stored as base64
+    - Download Excel files from cloud storage and save locally
+    - Restore Excel files from database storage
+    - Write Excel files received from API responses
+    - Initialize workbooks from pre-existing templates
+    
+    The function will create or overwrite the file at the specified path.
+    
+    Args:
+        filepath: Path where to write the Excel file (supports .xlsx, .xlsm, .xlsb, .xls formats)
+        base64_content: Base64-encoded string of Excel file binary content
+    
+    Returns:
+        Dictionary containing:
+            - message: Success message
+            - filepath: Path where file was written
+            - size: Size of written file in bytes
+    
+    Raises:
+        WorkbookError: If decoding fails, permission denied, or other write errors
+    
+    Example:
+        # Write from template
+        template_base64 = "UEsDBBQABgAIAAAAIQBi7p1o..."
+        result = write_excel_binary(
+            filepath='output/report.xlsx',
+            base64_content=template_base64
+        )
+        
+        # Use cases:
+        # - Start from a template stored in database
+        # - Download from S3 and save locally
+        # - Receive from API and write to disk
+        # - Restore from backup
+    
+    Notes:
+        - Creates parent directories if they don't exist
+        - Overwrites existing file at the path
+        - Works with .xlsx, .xlsm, .xlsb (Excel 2007+) and .xls (Excel 97-2003) formats
+        - Validates that decoded content is valid base64
+        - Use read_excel_binary() to get base64 content from existing files
+    """
+    try:
+        path = Path(filepath)
+        
+        # Create parent directories if they don't exist
+        path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Decode base64 content
+        try:
+            binary_content = base64.b64decode(base64_content)
+        except Exception as e:
+            raise WorkbookError(f"Invalid base64 content: {str(e)}")
+        
+        # Validate minimum file size (Excel files have minimum size)
+        if len(binary_content) < 100:
+            raise WorkbookError("Decoded content too small to be a valid Excel file")
+        
+        # Write the binary content to file
+        with open(filepath, 'wb') as f:
+            f.write(binary_content)
+        
+        # Get file size after writing
+        file_size = path.stat().st_size
+        
+        logger.info(f"Successfully wrote Excel file from binary: {filepath} ({file_size} bytes)")
+        
+        return {
+            "message": f"Successfully wrote Excel file: {filepath}",
+            "filepath": str(path.absolute()),
+            "size": file_size
+        }
+        
+    except PermissionError:
+        error_msg = f"Permission denied writing file: {filepath}"
+        logger.error(error_msg)
+        raise WorkbookError(error_msg)
+    except WorkbookError as e:
+        logger.error(str(e))
+        raise
+    except Exception as e:
+        error_msg = f"Failed to write Excel file from binary: {str(e)}"
+        logger.error(error_msg)
+        raise WorkbookError(error_msg)
+
 

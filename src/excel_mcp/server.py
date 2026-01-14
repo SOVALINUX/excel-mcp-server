@@ -23,7 +23,11 @@ from excel_mcp.validation import (
     validate_range_in_sheet_operation as validate_range_impl
 )
 from excel_mcp.chart import create_chart_in_sheet as create_chart_impl
-from excel_mcp.workbook import get_workbook_info, read_excel_binary as read_excel_binary_impl
+from excel_mcp.workbook import (
+    get_workbook_info,
+    read_excel_binary as read_excel_binary_impl,
+    write_excel_binary as write_excel_binary_impl
+)
 from excel_mcp.data import write_data
 from excel_mcp.pivot import create_pivot_table as create_pivot_table_impl
 from excel_mcp.tables import create_excel_table as create_table_impl
@@ -565,6 +569,46 @@ def read_excel_binary(filepath: str) -> str:
         return f"Error: {str(e)}"
     except Exception as e:
         logger.error(f"Error reading Excel file as binary: {e}")
+        raise
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Write Excel Binary",
+        destructiveHint=True,
+    ),
+)
+def write_excel_binary(filepath: str, base64_content: str) -> str:
+    """Write base64-encoded content to an Excel file.
+    
+    This tool creates or overwrites an Excel file from base64-encoded content, useful for:
+    - Creating files from templates stored as base64
+    - Downloading files from cloud storage and saving locally
+    - Restoring files from database storage
+    - Writing files received from API responses
+    - Initializing workbooks from pre-existing templates
+    
+    Args:
+        filepath: Path where to write the Excel file (supports .xlsx, .xlsm, .xlsb, .xls formats)
+        base64_content: Base64-encoded string of Excel file binary content
+    
+    Returns:
+        Success message with file path and size
+    
+    Notes:
+        - Creates parent directories if they don't exist
+        - Overwrites existing file at the path
+        - Works with .xlsx, .xlsm, .xlsb (Excel 2007+) and .xls (Excel 97-2003) formats
+        - Validates that content is valid base64 and minimum size
+        - Use read_excel_binary() to get base64 from existing files
+    """
+    try:
+        full_path = get_excel_path(filepath, validate_extension=True)
+        result = write_excel_binary_impl(full_path, base64_content)
+        return result["message"]
+    except (WorkbookError, ValueError) as e:
+        return f"Error: {str(e)}"
+    except Exception as e:
+        logger.error(f"Error writing Excel file from binary: {e}")
         raise
 
 @mcp.tool(

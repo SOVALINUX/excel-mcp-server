@@ -14,7 +14,11 @@ A Model Context Protocol (MCP) server that lets you manipulate Excel files witho
 
 This fork extends the original Excel MCP Server with additional capabilities:
 
-- **📦 Binary Export**: Read Excel files as base64-encoded strings for cloud storage uploads (S3, Azure, GCS), API transfers, and database storage
+- **📦 Binary I/O**: Read and write Excel files as base64-encoded strings for seamless cloud integration
+  - `read_excel_binary`: Export files for uploads (S3, Azure, GCS), API transfers, database storage
+  - `write_excel_binary`: Import files from templates, cloud downloads, API responses, backups
+- **🔐 Enhanced Validation**: Improved file type and path validation for safer operations
+- **📚 Complete Documentation**: See [TOOLS.md](TOOLS.md) for detailed tool documentation
 
 ## Features
 
