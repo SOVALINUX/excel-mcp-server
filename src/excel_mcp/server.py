@@ -26,7 +26,8 @@ from excel_mcp.chart import create_chart_in_sheet as create_chart_impl
 from excel_mcp.workbook import (
     get_workbook_info,
     read_excel_binary as read_excel_binary_impl,
-    write_excel_binary as write_excel_binary_impl
+    write_excel_binary as write_excel_binary_impl,
+    delete_file as delete_file_impl
 )
 from excel_mcp.data import write_data
 from excel_mcp.pivot import create_pivot_table as create_pivot_table_impl
@@ -191,7 +192,12 @@ def format_range(
     wrap_text: bool = False,
     merge_cells: bool = False,
     protection: Optional[Dict[str, Any]] = None,
-    conditional_format: Optional[Dict[str, Any]] = None
+    conditional_format: Optional[Dict[str, Any]] = None,
+    auto_column_width: bool = False,
+    column_width: Optional[float] = None,
+    auto_detect_numeric_columns: bool = False,
+    date_format: Optional[str] = None,
+    auto_detect_date_columns: bool = False
 ) -> str:
     """Apply formatting to a range of cells."""
     try:
@@ -217,7 +223,12 @@ def format_range(
             wrap_text=wrap_text,
             merge_cells=merge_cells,
             protection=protection,  # This can be None
-            conditional_format=conditional_format  # This can be None
+            conditional_format=conditional_format,  # This can be None
+            auto_column_width=auto_column_width,
+            column_width=column_width,  # This can be None
+            auto_detect_numeric_columns=auto_detect_numeric_columns,
+            date_format=date_format,  # This can be None
+            auto_detect_date_columns=auto_detect_date_columns
         )
         return "Range formatted successfully"
     except (ValidationError, FormattingError) as e:
@@ -891,6 +902,45 @@ def delete_sheet_columns(
         return f"Error: {str(e)}"
     except Exception as e:
         logger.error(f"Error deleting columns: {e}")
+        raise
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Delete File",
+        destructiveHint=True,
+    ),
+)
+def delete_file(filepath: str) -> str:
+    """Delete an Excel file to cleanup and prevent further access.
+    
+    This tool is useful for:
+    - Removing temporary Excel files after processing
+    - Cleaning up generated reports or exports
+    - Deleting outdated or obsolete workbooks
+    - Preventing further access to sensitive files
+    - Freeing up disk space by removing unused files
+    
+    Args:
+        filepath: Path to the Excel file to delete (supports .xlsx, .xlsm, .xlsb, .xls formats)
+    
+    Returns:
+        Success message with filepath
+    
+    Notes:
+        - File must exist to be deleted
+        - Requires write permissions on the file and parent directory
+        - Operation is irreversible - file cannot be recovered
+        - Works with .xlsx, .xlsm, .xlsb (Excel 2007+) and .xls (Excel 97-2003) formats
+        - Will raise error if file is currently open or locked by another process
+    """
+    try:
+        full_path = get_excel_path(filepath, validate_extension=True)
+        result = delete_file_impl(full_path)
+        return result["message"]
+    except (WorkbookError, ValueError) as e:
+        return f"Error: {str(e)}"
+    except Exception as e:
+        logger.error(f"Error deleting file: {e}")
         raise
 
 def run_sse():

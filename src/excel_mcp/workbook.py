@@ -258,4 +258,80 @@ def write_excel_binary(filepath: str, base64_content: str) -> dict[str, Any]:
         logger.error(error_msg)
         raise WorkbookError(error_msg)
 
+def delete_file(filepath: str) -> dict[str, Any]:
+    """Delete an Excel file to cleanup and prevent further access.
+    
+    This function is useful when you need to:
+    - Remove temporary Excel files after processing
+    - Clean up generated reports or exports
+    - Delete outdated or obsolete workbooks
+    - Prevent further access to sensitive files
+    - Free up disk space by removing unused files
+    
+    The function will delete the file at the specified path if it exists.
+    
+    Args:
+        filepath: Path to the Excel file to delete (supports .xlsx, .xlsm, .xlsb, .xls formats)
+    
+    Returns:
+        Dictionary containing:
+            - message: Success message
+            - filepath: Path of the deleted file
+    
+    Raises:
+        WorkbookError: If file doesn't exist, permission denied, or other delete errors
+    
+    Example:
+        # Delete temporary file
+        result = delete_file(filepath='temp/report.xlsx')
+        
+        # Use cases:
+        # - Clean up after processing
+        # - Remove temporary exports
+        # - Delete old reports
+        # - Prevent access to sensitive data
+    
+    Notes:
+        - File must exist to be deleted
+        - Requires write permissions on the file and parent directory
+        - Operation is irreversible - file cannot be recovered
+        - Works with .xlsx, .xlsm, .xlsb (Excel 2007+) and .xls (Excel 97-2003) formats
+        - Will raise error if file is currently open or locked by another process
+    """
+    try:
+        path = Path(filepath)
+        
+        # Check if file exists
+        if not path.exists():
+            raise WorkbookError(f"File not found: {filepath}")
+        
+        # Check if it's actually a file (not a directory)
+        if not path.is_file():
+            raise WorkbookError(f"Path is not a file: {filepath}")
+        
+        # Get file size before deletion for logging
+        file_size = path.stat().st_size
+        
+        # Delete the file
+        path.unlink()
+        
+        logger.info(f"Successfully deleted Excel file: {filepath} ({file_size} bytes)")
+        
+        return {
+            "message": f"Successfully deleted Excel file: {filepath}",
+            "filepath": str(path.absolute())
+        }
+        
+    except PermissionError:
+        error_msg = f"Permission denied deleting file: {filepath}"
+        logger.error(error_msg)
+        raise WorkbookError(error_msg)
+    except WorkbookError as e:
+        logger.error(str(e))
+        raise
+    except Exception as e:
+        error_msg = f"Failed to delete Excel file: {str(e)}"
+        logger.error(error_msg)
+        raise WorkbookError(error_msg)
+
 

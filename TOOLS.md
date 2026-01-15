@@ -93,6 +93,31 @@ write_excel_binary(filepath: str, base64_content: str) -> str
 - Validates that content is valid base64 and meets minimum size requirements
 - Use `read_excel_binary()` to get base64 content from existing files
 
+### delete_file
+
+Delete an Excel file to cleanup and prevent further access.
+
+```python
+delete_file(filepath: str) -> str
+```
+
+- `filepath`: Path to the Excel file to delete (supports .xlsx, .xlsm, .xlsb, .xls formats)
+- Returns: Success message with filepath
+
+**Use Cases:**
+- Remove temporary Excel files after processing
+- Clean up generated reports or exports
+- Delete outdated or obsolete workbooks
+- Prevent further access to sensitive files
+- Free up disk space by removing unused files
+
+**Notes:**
+- File must exist to be deleted
+- Requires write permissions on the file and parent directory
+- Operation is irreversible - file cannot be recovered
+- Works with .xlsx, .xlsm, .xlsb (Excel 2007+) and .xls (Excel 97-2003) formats
+- Will raise error if file is currently open or locked by another process
+
 ## Data Operations
 
 ### write_data_to_excel
@@ -160,7 +185,12 @@ format_range(
     wrap_text: bool = False,
     merge_cells: bool = False,
     protection: Dict[str, Any] = None,
-    conditional_format: Dict[str, Any] = None
+    conditional_format: Dict[str, Any] = None,
+    auto_column_width: bool = False,
+    column_width: float = None,
+    auto_detect_numeric_columns: bool = False,
+    date_format: str = None,
+    auto_detect_date_columns: bool = False
 ) -> str
 ```
 
@@ -168,7 +198,25 @@ format_range(
 - `sheet_name`: Target worksheet name
 - `start_cell`: Starting cell of range
 - `end_cell`: Optional ending cell of range
-- Various formatting options (see parameters)
+- `bold`: Make text bold
+- `italic`: Make text italic
+- `underline`: Underline text
+- `font_size`: Font size in points
+- `font_color`: Font color (hex code)
+- `bg_color`: Background color (hex code)
+- `border_style`: Border style (thin, medium, thick, double)
+- `border_color`: Border color (hex code)
+- `number_format`: Excel number format string (e.g., '#,##0.00')
+- `alignment`: Text alignment (left, center, right, justify)
+- `wrap_text`: Wrap text in cells
+- `merge_cells`: Merge the range
+- `protection`: Cell protection settings dict
+- `conditional_format`: Conditional formatting rules dict
+- `auto_column_width`: Auto-adjust column width based on content (approximate, checks longest text including newlines)
+- `column_width`: Absolute column width number applied to all columns in range
+- `auto_detect_numeric_columns`: Auto-detect and apply number_format to numeric columns
+- `date_format`: Date format string (e.g., 'yyyy-mm-dd', 'mm/dd/yyyy')
+- `auto_detect_date_columns`: Auto-detect and apply date_format to date columns
 - Returns: Success message
 
 ### merge_cells

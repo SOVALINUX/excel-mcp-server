@@ -17,6 +17,11 @@ This fork extends the original Excel MCP Server with additional capabilities:
 - **📦 Binary I/O**: Read and write Excel files as base64-encoded strings for seamless cloud integration
   - `read_excel_binary`: Export files for uploads (S3, Azure, GCS), API transfers, database storage
   - `write_excel_binary`: Import files from templates, cloud downloads, API responses, backups
+  - `delete_file`: Cleanup temporary files and prevent further access to sensitive data
+- **🎨 Enhanced Formatting**: Advanced formatting options for professional spreadsheets
+  - Auto-detect and format numeric/date columns with appropriate number/date formats
+  - Auto-adjust column widths based on content (including multi-line text)
+  - Set absolute column widths for precise layout control
 - **🔐 Enhanced Validation**: Improved file type and path validation for safer operations
 - **📚 Complete Documentation**: See [TOOLS.md](TOOLS.md) for detailed tool documentation
 
