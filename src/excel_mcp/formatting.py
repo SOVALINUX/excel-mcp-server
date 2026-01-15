@@ -14,7 +14,7 @@ from openpyxl.formatting.rule import (
 from openpyxl.utils import get_column_letter
 
 from .workbook import get_or_create_workbook
-from .cell_utils import parse_cell_range, validate_cell_reference
+from .cell_utils import parse_cell_range, validate_cell_reference, get_actual_data_range
 from .exceptions import ValidationError, FormattingError
 
 logger = logging.getLogger(__name__)
@@ -328,14 +328,21 @@ def format_range(
                 raise FormattingError(f"Failed to apply conditional formatting: {str(e)}")
         
         # Auto-detect and apply formats to columns
+        # OPTIMIZATION: Only scan rows that actually have data
         if auto_detect_numeric_columns or auto_detect_date_columns:
-            # Analyze column data types
+            # Find the actual data range (stops early at empty rows)
+            max_data_row, max_data_col = get_actual_data_range(
+                sheet, start_row, start_col, end_row, end_col, max_empty_rows=10
+            )
+            
+            # Analyze column data types (only scan rows with data)
             for col in range(start_col, end_col + 1):
                 is_numeric = True
                 is_date = True
                 has_data = False
                 
-                for row in range(start_row, end_row + 1):
+                # Only scan up to max_data_row instead of entire range
+                for row in range(start_row, min(max_data_row + 1, end_row + 1)):
                     cell = sheet.cell(row=row, column=col)
                     value = cell.value
                     
@@ -349,6 +356,10 @@ def format_range(
                         # Check if date (including date-like strings)
                         if not _is_date_like(value):
                             is_date = False
+                        
+                        # Early exit if both checks failed
+                        if not is_numeric and not is_date:
+                            break
                 
                 # Apply formats based on detection
                 if has_data:
@@ -380,11 +391,23 @@ def format_range(
         
         if auto_column_width:
             # Auto-adjust width based on content
+            # OPTIMIZATION: Only scan rows with actual data
+            # Reuse data range if already calculated, otherwise calculate it
+            if auto_detect_numeric_columns or auto_detect_date_columns:
+                # Already calculated above
+                scan_end_row = max_data_row
+            else:
+                # Calculate data range for width calculation only
+                scan_end_row, _ = get_actual_data_range(
+                    sheet, start_row, start_col, end_row, end_col, max_empty_rows=10
+                )
+            
             for col in range(start_col, end_col + 1):
                 max_length = 0
                 col_letter = get_column_letter(col)
                 
-                for row in range(start_row, end_row + 1):
+                # Only scan up to the last row with data
+                for row in range(start_row, min(scan_end_row + 1, end_row + 1)):
                     cell = sheet.cell(row=row, column=col)
                     if cell.value:
                         # Convert to string and handle multi-line content
