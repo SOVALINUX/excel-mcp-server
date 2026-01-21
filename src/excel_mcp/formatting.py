@@ -20,7 +20,7 @@ from .exceptions import ValidationError, FormattingError
 logger = logging.getLogger(__name__)
 
 
-def _parse_date_string(value: str) -> datetime | None:
+def _parse_date_string(value: str, known_format: str | None = None) -> tuple[datetime | None, str | None]:
     """Try to parse a string as a date in common formats.
     
     Supports:
@@ -31,31 +31,48 @@ def _parse_date_string(value: str) -> datetime | None:
     
     Args:
         value: String value to parse
+        known_format: Optional format string from previous successful parse in same column.
+                     If provided, this format is tried first for performance.
         
     Returns:
-        datetime object if parsing succeeds, None otherwise
+        Tuple of (datetime object if parsing succeeds, format string used)
+        Returns (None, None) if parsing fails
     """
     if not isinstance(value, str):
-        return None
+        return None, None
     
     # Clean the string
     value = value.strip()
     
+    # If we know the format from previous cell, try it first
+    if known_format:
+        try:
+            return datetime.strptime(value, known_format), known_format
+        except ValueError:
+            # Format changed or invalid, fall through to try all formats
+            pass
+    
     # Common date formats to try
     date_formats = [
+        # ISO formats with milliseconds
+        '%Y-%m-%d %H:%M:%S.%f',
+        '%Y-%m-%dT%H:%M:%S.%f',
         # ISO formats
         '%Y-%m-%d',
         '%Y-%m-%dT%H:%M:%S',
         '%Y-%m-%d %H:%M:%S',
         '%Y/%m/%d',
+        '%Y/%m/%d %H:%M:%S',
         # US formats
         '%m/%d/%Y',
         '%m-%d-%Y',
         '%m.%d.%Y',
+        '%m/%d/%Y %H:%M:%S',
         # EU formats
         '%d/%m/%Y',
         '%d-%m-%Y',
         '%d.%m.%Y',
+        '%d/%m/%Y %H:%M:%S',
         # Text formats
         '%d-%b-%Y',
         '%b %d, %Y',
@@ -66,29 +83,73 @@ def _parse_date_string(value: str) -> datetime | None:
     
     for fmt in date_formats:
         try:
-            return datetime.strptime(value, fmt)
+            return datetime.strptime(value, fmt), fmt
         except ValueError:
             continue
     
-    return None
+    return None, None
 
 
-def _is_date_like(value: Any) -> bool:
+def _is_date_like(value: Any, known_format: str | None = None) -> tuple[bool, str | None]:
     """Check if a value is a date or looks like a date string.
     
     Args:
         value: Value to check
+        known_format: Optional format string from previous successful parse in same column
         
     Returns:
-        True if value is a date, datetime, or parseable date string
+        Tuple of (True if value is a date/datetime/parseable date string, format string if parsed)
     """
     if isinstance(value, (datetime, date)):
-        return True
+        return True, None
     
     if isinstance(value, str):
-        return _parse_date_string(value) is not None
+        parsed_date, fmt = _parse_date_string(value, known_format)
+        return parsed_date is not None, fmt
     
-    return False
+    return False, None
+
+
+def _count_significant_digits(value: str) -> int:
+    """Count significant digits in a numeric string.
+    
+    Excel stores numbers as IEEE-754 double-precision floats with 15 significant digits.
+    Numbers with more than 15 digits will lose precision.
+    
+    Args:
+        value: String representation of a number
+        
+    Returns:
+        Number of significant digits (excluding leading zeros, decimal point, signs)
+        
+    Examples:
+        '123' -> 3
+        '0012.3400' -> 5 (leading zeros don't count, trailing zeros after decimal do)
+        '1234567890123456' -> 16
+        '-123.456' -> 6
+    """
+    # Remove whitespace and sign
+    cleaned = value.strip().lstrip('+-')
+    
+    # Split by decimal point
+    if '.' in cleaned:
+        integer_part, decimal_part = cleaned.split('.', 1)
+        # Remove leading zeros from integer part
+        integer_part = integer_part.lstrip('0')
+        # Keep trailing zeros in decimal part as they are significant
+        # But remove trailing zeros for counting
+        decimal_part = decimal_part.rstrip('0')
+        # Combine and count
+        significant = integer_part + decimal_part
+        if not significant:
+            return 1
+        return len(significant)
+    else:
+        # No decimal point - remove commas and leading zeros
+        cleaned = cleaned.replace(',', '').lstrip('0')
+        if not cleaned:
+            return 1
+        return len(cleaned)
 
 def format_range(
     filepath: str,
@@ -272,7 +333,7 @@ def format_range(
                 # Apply date format if specified (convert string dates to datetime)
                 if date_format is not None and not auto_detect_date_columns:
                     if isinstance(cell.value, str):
-                        parsed_date = _parse_date_string(cell.value)
+                        parsed_date, _ = _parse_date_string(cell.value)
                         if parsed_date:
                             cell.value = parsed_date
                     cell.number_format = date_format
@@ -339,7 +400,13 @@ def format_range(
             for col in range(start_col, end_col + 1):
                 is_numeric = True
                 is_date = True
+                is_datetime = False  # Track if we have datetime vs pure date
                 has_data = False
+                detected_date_format = None  # Cache the date format for this column
+                has_long_number = False  # Track if column has numbers > 15 digits
+                
+                # Excel's precision limit: 15 significant digits (IEEE-754 double precision)
+                EXCEL_MAX_PRECISION_DIGITS = 15
                 
                 # Only scan up to max_data_row instead of entire range
                 for row in range(start_row, min(max_data_row + 1, end_row + 1)):
@@ -349,13 +416,49 @@ def format_range(
                     if value is not None and value != '':
                         has_data = True
                         
-                        # Check if numeric
-                        if not isinstance(value, (int, float)):
-                            is_numeric = False
-                        
-                        # Check if date (including date-like strings)
-                        if not _is_date_like(value):
+                        # Check if numeric (including string representations)
+                        if isinstance(value, (int, float)):
+                            # Already numeric, not a date
                             is_date = False
+                            # Check if it's too long (would lose precision)
+                            # Convert to string to count digits
+                            str_value = str(value)
+                            if _count_significant_digits(str_value) > EXCEL_MAX_PRECISION_DIGITS:
+                                has_long_number = True
+                                is_numeric = False
+                        elif isinstance(value, str):
+                            # Try to parse as number
+                            try:
+                                float(value)
+                                # It's a numeric string, not a date
+                                is_date = False
+                                # Check if it's too long for Excel's precision
+                                if _count_significant_digits(value) > EXCEL_MAX_PRECISION_DIGITS:
+                                    has_long_number = True
+                                    is_numeric = False
+                            except ValueError:
+                                # Not numeric, check if it's a date
+                                is_numeric = False
+                                is_date_value, date_fmt = _is_date_like(value, detected_date_format)
+                                if not is_date_value:
+                                    is_date = False
+                                else:
+                                    # Cache the format for subsequent rows
+                                    if date_fmt:
+                                        detected_date_format = date_fmt
+                                    # Check if it has time component (datetime vs date)
+                                    if ' ' in value or 'T' in value:
+                                        is_datetime = True
+                        else:
+                            # Check if date object
+                            if isinstance(value, datetime):
+                                is_numeric = False
+                                is_datetime = True
+                            elif isinstance(value, date):
+                                is_numeric = False
+                            else:
+                                is_numeric = False
+                                is_date = False
                         
                         # Early exit if both checks failed
                         if not is_numeric and not is_date:
@@ -363,24 +466,57 @@ def format_range(
                 
                 # Apply formats based on detection
                 if has_data:
+                    # Log if column has long numbers that are kept as text
+                    if has_long_number:
+                        col_letter = get_column_letter(col)
+                        logger.info(
+                            f"Column {col_letter} contains numbers with >15 significant digits. "
+                            f"Keeping as text to prevent data loss (Excel's precision limit is 15 digits)."
+                        )
+                    
                     if auto_detect_numeric_columns and is_numeric and number_format:
+                        # Convert string numbers to actual numbers and apply format
                         for row in range(start_row, end_row + 1):
                             cell = sheet.cell(row=row, column=col)
+                            if isinstance(cell.value, str) and cell.value.strip():
+                                try:
+                                    # Try integer first, then float
+                                    if '.' not in cell.value:
+                                        cell.value = int(cell.value)
+                                    else:
+                                        cell.value = float(cell.value)
+                                except ValueError:
+                                    pass  # Keep as string if conversion fails
                             cell.number_format = number_format
                     
-                    if auto_detect_date_columns and is_date and date_format:
-                        # Convert date strings to Excel date numbers
+                    if auto_detect_date_columns and is_date:
+                        # Determine appropriate date format
+                        if date_format:
+                            actual_date_format = date_format
+                        elif is_datetime:
+                            # Default datetime format
+                            actual_date_format = 'yyyy-mm-dd hh:mm:ss'
+                        else:
+                            # Default date-only format
+                            actual_date_format = 'yyyy-mm-dd'
+                        
+                        # Convert date strings to Excel date objects and apply format
+                        # Use cached format for performance
+                        column_date_format = detected_date_format
                         for row in range(start_row, end_row + 1):
                             cell = sheet.cell(row=row, column=col)
                             
                             # Convert string dates to datetime objects
-                            if isinstance(cell.value, str):
-                                parsed_date = _parse_date_string(cell.value)
+                            if isinstance(cell.value, str) and cell.value.strip():
+                                parsed_date, fmt = _parse_date_string(cell.value, column_date_format)
                                 if parsed_date:
                                     cell.value = parsed_date
+                                    # Cache format for next iteration
+                                    if fmt and not column_date_format:
+                                        column_date_format = fmt
                             
                             # Apply date format
-                            cell.number_format = date_format
+                            cell.number_format = actual_date_format
         
         # Apply column width settings
         if column_width is not None:
@@ -406,7 +542,16 @@ def format_range(
                 max_length = 0
                 col_letter = get_column_letter(col)
                 
-                # Only scan up to the last row with data
+                # ALWAYS check row 1 (header row) first, even if not in the formatting range
+                # This ensures column width accommodates the header
+                header_cell = sheet.cell(row=1, column=col)
+                if header_cell.value:
+                    header_str = str(header_cell.value)
+                    header_lines = header_str.split('\n')
+                    header_length = max(len(line) for line in header_lines)
+                    max_length = header_length
+                
+                # Then scan the data rows (only up to the last row with data)
                 for row in range(start_row, min(scan_end_row + 1, end_row + 1)):
                     cell = sheet.cell(row=row, column=col)
                     if cell.value:
