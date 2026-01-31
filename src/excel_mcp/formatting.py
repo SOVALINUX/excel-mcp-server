@@ -388,6 +388,15 @@ def format_range(
             except Exception as e:
                 raise FormattingError(f"Failed to apply conditional formatting: {str(e)}")
         
+        # Track auto-detection results
+        auto_detection_results = {
+            "numeric_columns": [],
+            "date_columns": [],
+            "datetime_columns": [],
+            "text_columns": [],
+            "long_number_columns": []
+        }
+        
         # Auto-detect and apply formats to columns
         # OPTIMIZATION: Only scan rows that actually have data
         if auto_detect_numeric_columns or auto_detect_date_columns:
@@ -464,15 +473,16 @@ def format_range(
                         if not is_numeric and not is_date:
                             break
                 
-                # Apply formats based on detection
+                # Apply formats based on detection and track results
+                col_letter = get_column_letter(col)
                 if has_data:
                     # Log if column has long numbers that are kept as text
                     if has_long_number:
-                        col_letter = get_column_letter(col)
                         logger.info(
                             f"Column {col_letter} contains numbers with >15 significant digits. "
                             f"Keeping as text to prevent data loss (Excel's precision limit is 15 digits)."
                         )
+                        auto_detection_results["long_number_columns"].append(col_letter)
                     
                     if auto_detect_numeric_columns and is_numeric and number_format:
                         # Convert string numbers to actual numbers and apply format
@@ -488,6 +498,7 @@ def format_range(
                                 except ValueError:
                                     pass  # Keep as string if conversion fails
                             cell.number_format = number_format
+                        auto_detection_results["numeric_columns"].append(col_letter)
                     
                     if auto_detect_date_columns and is_date:
                         # Determine appropriate date format
@@ -517,6 +528,16 @@ def format_range(
                             
                             # Apply date format
                             cell.number_format = actual_date_format
+                        
+                        # Track whether it's datetime or date
+                        if is_datetime:
+                            auto_detection_results["datetime_columns"].append(col_letter)
+                        else:
+                            auto_detection_results["date_columns"].append(col_letter)
+                    
+                    # Track text columns (columns that weren't detected as numeric or date)
+                    if not is_numeric and not is_date and not has_long_number:
+                        auto_detection_results["text_columns"].append(col_letter)
         
         # Apply column width settings
         if column_width is not None:
@@ -573,10 +594,43 @@ def format_range(
         wb.save(filepath)
         
         range_str = f"{start_cell}:{end_cell}" if end_cell else start_cell
-        return {
+        result = {
             "message": f"Applied formatting to range {range_str}",
             "range": range_str
         }
+        
+        # Add auto-detection results if any detection was performed
+        if auto_detect_numeric_columns or auto_detect_date_columns:
+            result["auto_detection"] = {
+                "numeric_columns": auto_detection_results["numeric_columns"],
+                "date_columns": auto_detection_results["date_columns"],
+                "datetime_columns": auto_detection_results["datetime_columns"],
+                "text_columns": auto_detection_results["text_columns"],
+                "long_number_columns": auto_detection_results["long_number_columns"]
+            }
+            
+            # Add summary message with column lists
+            summary_parts = []
+            if auto_detection_results["numeric_columns"]:
+                cols = ", ".join(auto_detection_results['numeric_columns'])
+                summary_parts.append(f"numeric: {cols}")
+            if auto_detection_results["date_columns"]:
+                cols = ", ".join(auto_detection_results['date_columns'])
+                summary_parts.append(f"date: {cols}")
+            if auto_detection_results["datetime_columns"]:
+                cols = ", ".join(auto_detection_results['datetime_columns'])
+                summary_parts.append(f"datetime: {cols}")
+            if auto_detection_results["long_number_columns"]:
+                cols = ", ".join(auto_detection_results['long_number_columns'])
+                summary_parts.append(f"long number (kept as text): {cols}")
+            if auto_detection_results["text_columns"]:
+                cols = ", ".join(auto_detection_results['text_columns'])
+                summary_parts.append(f"text: {cols}")
+            
+            if summary_parts:
+                result["auto_detection"]["summary"] = f"Detected columns - {'; '.join(summary_parts)}"
+        
+        return result
         
     except (ValidationError, FormattingError) as e:
         logger.error(str(e))
