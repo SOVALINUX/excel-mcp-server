@@ -24,6 +24,7 @@ This fork extends the original Excel MCP Server with additional capabilities:
   - Set absolute column widths for precise layout control
 - **🔐 Enhanced Validation**: Improved file type and path validation for safer operations
 - **📚 Complete Documentation**: See [TOOLS.md](TOOLS.md) for detailed tool documentation
+- **📈 Chart templates**: After each `write_data_to_excel`, the saved `.xlsx` is patched so chart axes stay visible in Excel (OpenPyXL’s `save()` otherwise breaks axis OOXML). This runs automatically on every write—no new tool parameters.
 
 ## Features
 

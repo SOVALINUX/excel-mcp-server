@@ -139,6 +139,8 @@ write_data_to_excel(
 - `start_cell`: Starting cell (default: "A1")
 - Returns: Success message
 
+**Charts:** Each `write_data_to_excel` ends with a zip pass on the saved file: `xl/charts/chart*.xml` is fixed where OpenPyXL hid or stripped axis markup, so Excel shows category/value axes again (automatic; no extra parameters).
+
 ### read_data_from_excel
 
 Read data from Excel worksheet.
