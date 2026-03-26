@@ -139,17 +139,15 @@ write_data_to_excel(
 - `start_cell`: Starting cell (default: "A1")
 - Returns: Success message
 
-**Charts:** After `write_data_to_excel` (or any OpenPyXL save), call **`repair_chart_axes`** on the same path if the file has charts—OpenPyXL can break axis XML; this tool fixes `xl/charts/chart*.xml` in place.
+**Charts:** `write_data_to_excel` can break axis OOXML on save; if axes disappear, call `repair_char` before the final `read_excel_binary`. No need to call it after each `write_data_to_excel`— one call before that final read is enough.
 
-### repair_chart_axes
+### repair_char
 
 ```python
-repair_chart_axes(filepath: str) -> str
+repair_char(filepath: str) -> str
 ```
 
-- `filepath`: `.xlsx` / `.xlsm`
-- Returns: Short message (whether chart XML was updated)
-- Harmless on workbooks without charts
+- `.xlsx` / `.xlsm`; returns a short status; safe if there are no charts
 
 ### read_data_from_excel
 

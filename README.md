@@ -24,7 +24,7 @@ This fork extends the original Excel MCP Server with additional capabilities:
   - Set absolute column widths for precise layout control
 - **🔐 Enhanced Validation**: Improved file type and path validation for safer operations
 - **📚 Complete Documentation**: See [TOOLS.md](TOOLS.md) for detailed tool documentation
-- **📈 Chart templates**: After `write_data_to_excel`, call **`repair_chart_axes`** on the same file path so chart axes stay visible in Excel (OpenPyXL’s `save()` can break axis OOXML). Use this explicit step in bots (e.g. after write, before `read_excel_binary`).
+- **📈 Chart templates**: `write_data_to_excel` can break axis OOXML on save; if axes disappear, call `repair_char` before the final `read_excel_binary`. No need to do this after each write—one call before that final read is enough.
 
 ## Features
 

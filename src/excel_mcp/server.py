@@ -321,13 +321,13 @@ def write_data_to_excel(
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Repair chart axes (OOXML)",
+        title="Repair chart (OOXML)",
         destructiveHint=True,
     ),
 )
-def repair_chart_axes(filepath: str) -> str:
+def repair_char(filepath: str) -> str:
     """
-    Patch chart axis OOXML after save so axes show in Excel; use after write_data_to_excel when the file has charts.
+    MCP entry point is `repair_char` (room for more repair kinds later). Currently calls chart-axis OOXML repair only; no `what` parameter until a second fix exists.
 
     filepath: Path to .xlsx or .xlsm
     """
@@ -338,7 +338,7 @@ def repair_chart_axes(filepath: str) -> str:
             return f"Chart axis OOXML repaired in {full_path}"
         return f"No chart axis changes needed (or no chart XML) in {full_path}"
     except Exception as e:
-        logger.error(f"Error repairing chart axes: {e}")
+        logger.error(f"Error in repair_char: {e}")
         raise
 
 
