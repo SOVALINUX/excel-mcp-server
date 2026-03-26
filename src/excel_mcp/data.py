@@ -9,7 +9,6 @@ from openpyxl.utils import get_column_letter
 from .exceptions import DataError
 from .cell_utils import parse_cell_range
 from .cell_validation import get_data_validation_for_cell
-from .chart_ooxml_repair import repair_chart_axes_in_xlsx_path
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +129,6 @@ def write_data(
 
         wb.save(filepath)
         wb.close()
-        repair_chart_axes_in_xlsx_path(filepath)
 
         return {"message": f"Data written to {sheet_name}", "active_sheet": sheet_name}
     except DataError as e:

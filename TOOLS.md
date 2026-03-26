@@ -139,7 +139,17 @@ write_data_to_excel(
 - `start_cell`: Starting cell (default: "A1")
 - Returns: Success message
 
-**Charts:** Each `write_data_to_excel` ends with a zip pass on the saved file: `xl/charts/chart*.xml` is fixed where OpenPyXL hid or stripped axis markup, so Excel shows category/value axes again (automatic; no extra parameters).
+**Charts:** After `write_data_to_excel` (or any OpenPyXL save), call **`repair_chart_axes`** on the same path if the file has charts—OpenPyXL can break axis XML; this tool fixes `xl/charts/chart*.xml` in place.
+
+### repair_chart_axes
+
+```python
+repair_chart_axes(filepath: str) -> str
+```
+
+- `filepath`: `.xlsx` / `.xlsm`
+- Returns: Short message (whether chart XML was updated)
+- Harmless on workbooks without charts
 
 ### read_data_from_excel
 
