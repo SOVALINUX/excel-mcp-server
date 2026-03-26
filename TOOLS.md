@@ -143,11 +143,14 @@ write_data_to_excel(
 
 ### repair_char
 
+Fix chart axis OOXML in the saved workbook (`xl/charts/chart*.xml`).
+
 ```python
 repair_char(filepath: str) -> str
 ```
 
-- `.xlsx` / `.xlsm`; returns a short status; safe if there are no charts
+- `filepath`: Path to `.xlsx` or `.xlsm`
+- Returns: Success message
 
 ### read_data_from_excel
 
