@@ -139,14 +139,14 @@ write_data_to_excel(
 - `start_cell`: Starting cell (default: "A1")
 - Returns: Success message
 
-**Charts:** `write_data_to_excel` can break axis OOXML on save; if axes disappear, call `repair_char` before the final `read_excel_binary`. No need to call it after each `write_data_to_excel`— one call before that final read is enough.
+**Charts:** `write_data_to_excel` can break axis OOXML on save; if axes disappear, call `repair_chart` before the final `read_excel_binary`. No need to call it after each `write_data_to_excel`— one call before that final read is enough.
 
-### repair_char
+### repair_chart
 
-Fix chart axis OOXML in the saved workbook (`xl/charts/chart*.xml`).
+Patches chart axis OOXML in the saved workbook (`xl/charts/chart*.xml`).
 
 ```python
-repair_char(filepath: str) -> str
+repair_chart(filepath: str) -> str
 ```
 
 - `filepath`: Path to `.xlsx` or `.xlsm`

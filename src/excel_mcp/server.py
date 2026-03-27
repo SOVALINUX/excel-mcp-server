@@ -325,9 +325,9 @@ def write_data_to_excel(
         destructiveHint=True,
     ),
 )
-def repair_char(filepath: str) -> str:
+def repair_chart(filepath: str) -> str:
     """
-    MCP entry point is `repair_char` (room for more repair kinds later). Currently calls chart-axis OOXML repair only; no `what` parameter until a second fix exists.
+    Fix chart axis OOXML after save (`repair_chart_axes_in_xlsx_path`). More chart-related repairs could be added here later without a `what` parameter until a second distinct fix exists.
 
     filepath: Path to .xlsx or .xlsm
     """
@@ -338,7 +338,7 @@ def repair_char(filepath: str) -> str:
             return f"Chart axis OOXML repaired in {full_path}"
         return f"No chart axis changes needed (or no chart XML) in {full_path}"
     except Exception as e:
-        logger.error(f"Error in repair_char: {e}")
+        logger.error(f"Error in repair_chart: {e}")
         raise
 
 
