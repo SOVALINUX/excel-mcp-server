@@ -143,7 +143,7 @@ write_data_to_excel(
 
 ### repair_chart
 
-Patches chart axis XML in the saved workbook (`xl/charts/chart*.xml`). Most relevant when charts depend on data you just wrote (dynamic axis ranges).
+Likely to be used when the Excel file has charts with a dynamic axis (based on updated data). Should be called before the final read of the file (e.g. before `read_excel_binary`). Patches chart axis XML under `xl/charts/chart*.xml` in the saved workbook.
 
 ```python
 repair_chart(filepath: str) -> str
