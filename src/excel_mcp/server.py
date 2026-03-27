@@ -30,6 +30,7 @@ from excel_mcp.workbook import (
     delete_file as delete_file_impl
 )
 from excel_mcp.data import write_data
+from excel_mcp.chart_ooxml_repair import repair_chart_axes_in_xlsx_path
 from excel_mcp.pivot import create_pivot_table as create_pivot_table_impl
 from excel_mcp.tables import create_excel_table as create_table_impl
 from excel_mcp.sheet import (
@@ -316,6 +317,30 @@ def write_data_to_excel(
     except Exception as e:
         logger.error(f"Error writing data: {e}")
         raise
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Repair chart",
+        destructiveHint=True,
+    ),
+)
+def repair_chart(filepath: str) -> str:
+    """
+    Fix chart axis OOXML after save (`repair_chart_axes_in_xlsx_path`). More chart-related repairs could be added here later without a `what` parameter until a second distinct fix exists.
+
+    filepath: Path to .xlsx or .xlsm
+    """
+    try:
+        full_path = get_excel_path(filepath)
+        changed = repair_chart_axes_in_xlsx_path(full_path)
+        if changed:
+            return f"Chart axis OOXML repaired in {full_path}"
+        return f"No chart axis changes needed (or no chart XML) in {full_path}"
+    except Exception as e:
+        logger.error(f"Error in repair_chart: {e}")
+        raise
+
 
 @mcp.tool(
     annotations=ToolAnnotations(

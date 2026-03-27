@@ -139,6 +139,19 @@ write_data_to_excel(
 - `start_cell`: Starting cell (default: "A1")
 - Returns: Success message
 
+**Charts:** Place **`repair_chart` before the final `read_excel_binary`**, not after each **`write_data_to_excel`**. Use when the workbook has **charts with dynamic axes** (axes tied to updated data); **`write_data_to_excel`** can break that axis OOXML on save — **one** call before you read or export the file is enough.
+
+### repair_chart
+
+Likely to be used when the Excel file has charts with a dynamic axis (based on updated data). Should be called before the final read of the file (e.g. before `read_excel_binary`). Patches chart axis XML under `xl/charts/chart*.xml` in the saved workbook.
+
+```python
+repair_chart(filepath: str) -> str
+```
+
+- `filepath`: Path to `.xlsx` or `.xlsm`
+- Returns: Success message
+
 ### read_data_from_excel
 
 Read data from Excel worksheet.
