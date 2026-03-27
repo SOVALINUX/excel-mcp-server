@@ -321,7 +321,7 @@ def write_data_to_excel(
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Repair chart (OOXML)",
+        title="Repair chart",
         destructiveHint=True,
     ),
 )
